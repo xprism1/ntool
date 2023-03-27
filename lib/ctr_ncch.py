@@ -110,10 +110,10 @@ class NCCHReader:
             self.keyX = [CTR.KeyX0x2C[dev], self.keyX_2[dev]]
             
             if self.uses_seed: # This will result in keyY_2 being different
-                seed = get_seed(bytes(self.hdr.titleID))
+                seed = get_seed(bytes(self.hdr.programID))
                 
                 # Verify seed in SEEDDB
-                if hashlib.sha256(seed + self.hdr.titleID).digest()[:4] != bytes(self.hdr.seed_hash):
+                if hashlib.sha256(seed + self.hdr.programID).digest()[:4] != bytes(self.hdr.seed_hash):
                     raise Exception('Seed in SEEDDB failed verification')
                 
                 self.keyY[1] = hashlib.sha256(self.keyY[0] + seed).digest()[:16]
@@ -516,8 +516,8 @@ class NCCHBuilder:
                                  'Secure4': 0x0B }[crypto]
         if seed == 1:
             hdr.flags[7] |= 0x20
-            seed = get_seed(titleID_bytes)
-            seed_hash = hashlib.sha256(seed + hdr.titleID).digest()[:4]
+            seed = get_seed(bytes(hdr.programID))
+            seed_hash = hashlib.sha256(seed + hdr.programID).digest()[:4]
             hdr.seed_hash = (c_uint8 * sizeof(hdr.seed_hash))(*seed_hash)
 
         # Modify exheader (if necessary)
