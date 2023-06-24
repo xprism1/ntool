@@ -523,7 +523,7 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
     tmd = ''
     tik = ''
     for i in os.listdir('.'):
-        if i.startswith('tmd'):
+        if i.startswith('tmd.'):
             tmds.append(i)
         elif i == 'cetk':
             tik = i
@@ -545,7 +545,8 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
         regen_sig = 'dev'
 
     t = TMDReader(tmd)
-    out = f'{name}.{t.hdr.title_ver}.cia'
+    if out == '':
+        out = f'{name}.{t.hdr.title_ver}.cia'
     if tik == '':
         tikBuilder(titleID=t.titleID, title_ver=t.hdr.title_ver, regen_sig=regen_sig, out='tik')
         tik = 'tik'
