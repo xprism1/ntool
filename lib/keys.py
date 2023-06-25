@@ -61,4 +61,4 @@ class CTR: # For tuples: index 0 for retail, index 1 for dev
         tid = hextobytes(titleID).lstrip(b'\x00')
         salt = hashlib.md5(secret + tid).digest()
         titlekey = hashlib.pbkdf2_hmac('sha1', password.encode(), salt, 20, 16)
-        return hex(readbe(titlekey))[2:]
+        return hex(readbe(titlekey))[2:].zfill(32)
