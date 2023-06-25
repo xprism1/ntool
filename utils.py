@@ -555,17 +555,15 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
     cdn.decrypt()
     cf = [i for i in os.listdir('.') if i.endswith('.ncch') or i.endswith('.nds')]
 
-    CIABuilder(content_files=cf, tik=tik, tmd=tmd, meta=1, dev=cia_dev, out=out)
+    CIABuilder(content_files=cf, tik=tik, tmd=tmd, meta=1, dev=cia_dev, out='tmp.cia')
     for i in cf:
         os.remove(i)
     if os.path.isfile('tik'):
         os.remove('tik')
 
-    if not os.path.isfile(f'../{out}'):
-        shutil.move(out, f'../{out}')
-    else:
-        shutil.move(out, f'../{name}.{t.hdr.title_ver} (new).cia')
+    shutil.move('tmp.cia', '../tmp.cia')
     os.chdir('..')
+    shutil.move('tmp.cia', out)
 
 def csu2retailcias(path, out=''):
     if out == '':
