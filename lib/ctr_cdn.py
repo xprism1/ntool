@@ -16,8 +16,46 @@ class CDNReader:
             self.tik_read = tikReader(tik, dev)
             self.titlekey = self.tik_read.titlekey
         else: # Use titlekey generation algorithm
-            self.titlekey = hextobytes(CTR.titlekey_gen(self.tmd_read.titleID, 'mypass'))
-        
+            if self.tmd_read.titleID[3:5] == '48':
+                if self.tmd_read.titleID in [
+                    '000480044b424145',
+                    '000480044b474e4a',
+                    '000480044b4f514a',
+                    '000480044b524e45',
+                    '000480044b54394a',
+                    '000480044b594945',
+                ]:
+                    pw = '5037'
+                elif self.tmd_read.titleID in [
+                    '00048005484e4443',
+                    '00048005484e444b',
+                ]:
+                    pw = 'redsst'
+                else:
+                    pw = 'mypass'
+                self.titlekey = hextobytes(CTR.titlekey_gen(self.tmd_read.titleID, pw))
+            else:
+                for i in self.content_files:
+                    for name, info in self.tmd_read.files.items():
+                        if name.split('.')[1] == i:
+                            file = (i, info['iv'])
+                            break
+                
+                self.titlekey = b''
+                for i in ['mypass', 'password', 'nintendo', 'redsst']:
+                    titlekey = hextobytes(CTR.titlekey_gen(self.tmd_read.titleID, i))
+                    cipher = AES.new(titlekey, AES.MODE_CBC, iv=file[1])
+                    with open(file[0], 'rb') as f:
+                        magic = cipher.decrypt(f.read(0x110))[0x100:0x104]
+                    try:
+                        if magic.decode('utf-8') == 'NCCH':
+                            self.titlekey = titlekey
+                            break
+                    except UnicodeDecodeError:
+                        continue
+                if self.titlekey == b'':
+                    raise Exception('Could not generate valid titlekey')
+
     def decrypt(self):
         for i in self.content_files:
             for name, info in self.tmd_read.files.items():

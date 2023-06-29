@@ -547,15 +547,19 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
     t = TMDReader(tmd)
     if out == '':
         out = f'{name}.{t.hdr.title_ver}.cia'
-    if tik == '':
-        tikBuilder(titleID=t.titleID, title_ver=t.hdr.title_ver, regen_sig=regen_sig, out='tik')
-        tik = 'tik'
     
-    cdn = CDNReader(content_files=content_files, tmd=tmd, tik=tik, dev=cdn_dev)
+    cdn = CDNReader(content_files=content_files, tmd=tmd, dev=cdn_dev)
     cdn.decrypt()
     cf = [i for i in os.listdir('.') if i.endswith('.ncch') or i.endswith('.nds')]
 
-    CIABuilder(content_files=cf, tik=tik, tmd=tmd, meta=1, dev=cia_dev, out='tmp.cia')
+    if tik == '':
+        tikBuilder(titleID=t.titleID, title_ver=t.hdr.title_ver, titlekey=hex(readbe(cdn.titlekey))[2:].zfill(32), regen_sig=regen_sig, out='tik')
+        tik = 'tik'
+
+    meta = 1
+    if t.titleID[3:5] == '48':
+        meta = 0
+    CIABuilder(content_files=cf, tik=tik, tmd=tmd, meta=meta, dev=cia_dev, out='tmp.cia')
     for i in cf:
         os.remove(i)
     if os.path.isfile('tik'):
