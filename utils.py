@@ -7,7 +7,7 @@ from lib.ctr_romfs import RomFSReader, RomFSBuilder
 from lib.ctr_crr import crrReader
 from lib.ctr_tmd import TMDReader, TMDBuilder
 from lib.ctr_tik import tikReader, tikBuilder
-from lib.ctr_cdn import CDNReader
+from lib.ctr_cdn import CDNReader, CDNBuilder
 from lib.ctr_cnt import cntReader
 
 def cia_dev2retail(path, out=''):
@@ -568,6 +568,29 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
     shutil.move('tmp.cia', '../tmp.cia')
     os.chdir('..')
     shutil.move('tmp.cia', out)
+
+def cia2cdn(path, out='', titlekey='', cia_dev=0):
+    name = os.path.splitext(os.path.basename(path))[0]
+    if out == '':
+        out = name
+
+    cia = CIAReader(path, cia_dev)
+    cia.extract()
+    for i in ['cia_header.bin', 'cert.bin', 'meta.bin']:
+        if os.path.isfile(i):
+            os.remove(i)
+    
+    tik = 'tik'
+    tik_read = tikReader(tik)
+    if not tik_read.verify()[0][1]: # Ticket has invalid sig
+        tik = ''
+    
+    cf = [i for i in os.listdir('.') if i.endswith('.ncch') or i.endswith('.nds')]
+    CDNBuilder(content_files=cf, tik=tik, tmd='tmd', titlekey=titlekey, out=out)
+
+    for i in ['tik', 'tmd'] + cf:
+        if os.path.isfile(i):
+            os.remove(i)
 
 def csu2retailcias(path, out=''):
     if out == '':

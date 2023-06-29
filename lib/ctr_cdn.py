@@ -111,14 +111,15 @@ class CDNReader:
         )
 
 class CDNBuilder:
-    def __init__(self, content_files=[], tik='', tmd='', dev=0, out_tik='tik_new'):
+    def __init__(self, content_files=[], tik='', tmd='', titlekey='', dev=0, out='new'):
         '''
         content_files: list containing filenames of content files, which must each be named '[content index in hex, 4 chars].[contentID in hex, 8 chars].[ncch/nds]'
         Certificate chain will be appended at the end of the following files:
             - tik: path to ticket (optional)
             - tmd: path to tmd
+        titlekey: decrypted title key in hex, will be used if provided and ticket is not provided (if neither ticket nor titlekey is provided, use titlekey generation algorithm)
         dev: 0 or 1 (if 1, use dev-crypto for ticket titlekey)
-        out_tik: path to output ticket with cert chain appended
+        out: path to output folder
         '''
         
         content_files.sort(key=lambda h: int(h.split('.')[0], 16))
@@ -131,25 +132,35 @@ class CDNBuilder:
         if tik != '': # If ticket is present, parse ticket to get titlekey
             self.tik_read = tikReader(tik, dev)
             self.titlekey = self.tik_read.titlekey
-        else: # Use titlekey generation algorithm
-            self.titlekey = hextobytes(CTR.titlekey_gen(self.tmd_read.titleID, 'mypass'))
+        else:
+            if titlekey != '':
+                self.titlekey = hextobytes(titlekey)
+            else: # Use titlekey generation algorithm
+                self.titlekey = hextobytes(CTR.titlekey_gen(self.tmd_read.titleID, 'mypass'))
         
+        if not os.path.isdir(out):
+            os.makedirs(out)
+
         # Encrypt content files
         for i in self.content_files:
             info = self.tmd_read.files[i]
             name = i.split('.')[1] # CDN files are named as contentID
+            if 'iv' in info:
+                iv = info['iv']
+            else:
+                iv = int(i.split('.')[0], 16).to_bytes(2, 'big') + (b'\0' * 14)
             f = open(i, 'rb')
-            g = open(name, 'wb')
-            cipher = AES.new(self.titlekey, AES.MODE_CBC, iv=info['iv'])
+            g = open(os.path.join(out, name), 'wb')
+            cipher = AES.new(self.titlekey, AES.MODE_CBC, iv=iv)
             for data in read_chunks(f, info['size']):
                 g.write(cipher.encrypt(data))
             f.close()
             g.close()
-            print(f'Wrote to {name}')
+            print(f'Wrote to {os.path.join(out, name)}')
 
         # Append certificate chain to end of tmd (and tik)
         name = f'tmd.{self.tmd_read.hdr.title_ver}'
-        with open(name, 'wb') as f:
+        with open(os.path.join(out, name), 'wb') as f:
             with open(tmd, 'rb') as g:
                 f.write(g.read())
             if dev == 0:
@@ -162,10 +173,14 @@ class CDNBuilder:
                     f.write(g.read())
                 with open(os.path.join(resources_dir, 'CA00000004.cert'), 'rb') as g:
                     f.write(g.read())
-            print(f'Wrote to {name}')
+            print(f'Wrote to {os.path.join(out, name)}')
         
         if self.tik != '':
-            with open(f'{out_tik}', 'wb') as f:
+            if self.tik_read.data.consoleID == 0:
+                tik_name = 'cetk'
+            else:
+                tik_name = 'tik'
+            with open(os.path.join(out, tik_name), 'wb') as f:
                 with open(tik, 'rb') as g:
                     f.write(g.read())
                 if dev == 0:
@@ -178,4 +193,4 @@ class CDNBuilder:
                         f.write(g.read())
                     with open(os.path.join(resources_dir, 'CA00000004.cert'), 'rb') as g:
                         f.write(g.read())
-            print(f'Wrote to {out_tik}')
+            print(f'Wrote to {os.path.join(out, tik_name)}')

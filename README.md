@@ -40,6 +40,14 @@ python3 ntool.py cci2cia <path_to_cci> (--out <path_to_output_file>) (--cci_dev)
 python3 ntool.py cdn2cia <path_to_cdn_folder> (--out <path_to_output_file>) (--title-ver <ver>) (--cdn-dev) (--cia-dev)
 ```
 
+### Convert CIA to CDN contents
+- Pass `--titlekey` to use a custom titlekey to encrypt the content files (this field will be ignored if the ticket in the CIA is signed)
+- Pass `--cia-dev` if the CIA is dev-signed
+- Note that clean CDN contents are not guaranteed as the CIA may have improper contents (e.g. due to being decrypted)
+```py
+python3 ntool.py cia2cdn <path_to_cia> (--out <path_to_output_folder>) (--titlekey <titlekey>) (--cia-dev)
+```
+
 ### Full extraction and rebuild of NCCH/CIA/CCI:
 - First, use `ncch_extractall`/`cia_extractall`/`cci_extractall` to extract the NCCH/CIA/CCI to a folder
     - Pass the `--dev` flag to use dev crypto

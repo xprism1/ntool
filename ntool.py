@@ -46,3 +46,17 @@ elif sys.argv[1] == 'cdn2cia':
         elif sys.argv[i] == '--cia-dev':
             cia_dev = 1
     cdn2cia(path, out, title_ver, cdn_dev, cia_dev)
+
+elif sys.argv[1] == 'cia2cdn':
+    path = sys.argv[2]
+    out = ''
+    titlekey = ''
+    cia_dev = 0
+    for i in range(2, len(sys.argv)):
+        if sys.argv[i] == '--out':
+            out = sys.argv[i + 1]
+        elif sys.argv[i] == '--titlekey':
+            titlekey = sys.argv[i + 1]
+        elif sys.argv[i] == '--cia-dev':
+            cia_dev = 1
+    cia2cdn(path, out, titlekey, cia_dev)
