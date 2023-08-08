@@ -6,9 +6,18 @@
 
 ## Usage
 
-- **For the example commands, those in brackets are optional**
+- For the example commands, those **in brackets are optional**
 - Use **python** instead of **python3** if using Windows
-- "CCI" is equivalent to a .3ds file
+
+### Notes
+- "SRL" is equivalent to a .nds/.dsi file; "CCI" is equivalent to a .3ds file
+- A ROM resigned for dev needs to match your devkit's region for it to load successfully
+- IS-NITRO/TWL does not emulate Slot-1 save memory. Most games will show an error message if the save memory is not present. To work around this, you will need to insert a Slot-1 card with a matching save memory chip before loading the ROM image.
+
+### Re-sign and re-encrypt NTR/TWL-enhanced/TWL-exclusive SRL for dev:
+```py
+python3 ntool.py srl_retail2dev <path_to_srl> (--out <path_to_output_file>)
+```
 
 ### Re-sign and re-encrypt CIA/CCI for retail/dev:
 ```py
@@ -34,7 +43,17 @@ python3 ntool.py cci2cia <path_to_cci> (--out <path_to_output_file>) (--cci_dev)
 ```
 
 ### Convert CDN contents to CIA
+Example folder structure required:
+```
+cdn_folder/
+|__ 00000001
+|__ 00000002
+|__ 00000003
+|__ tmd.0
+|__ tmd.16
+```
 - If `--title-ver` is not provided and there are multiple TMD versions in the CDN folder, the latest TMD will be used
+- If a `cetk` exists in the CDN folder, it will be used as the ticket; if not, a ticket with a fake signature will be generated and used
 - Pass `--cdn-dev` if the CDN contents are dev-crypted/signed, pass `--cia-dev` if you want to build a dev-signed CIA
 ```py
 python3 ntool.py cdn2cia <path_to_cdn_folder> (--out <path_to_output_file>) (--title-ver <ver>) (--cdn-dev) (--cia-dev)

@@ -2,7 +2,7 @@
 import sys
 from utils import *
 
-if sys.argv[1] in ['cia_dev2retail', 'cia_retail2dev', 'cci_dev2retail', 'cci_retail2dev', 'csu2retailcias']:
+if sys.argv[1] in ['srl_retail2dev', 'cia_dev2retail', 'cia_retail2dev', 'cci_dev2retail', 'cci_retail2dev', 'csu2retailcias']:
     path = sys.argv[2]
     out = ''
     for i in range(2, len(sys.argv)):

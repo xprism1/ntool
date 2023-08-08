@@ -1,4 +1,5 @@
 from lib.common import *
+from lib.keys import NTR, TWL
 from lib.ctr_cia import CIAReader, CIABuilder
 from lib.ctr_cci import CCIReader, CCIBuilder
 from lib.ctr_ncch import NCCHReader, NCCHBuilder
@@ -9,6 +10,70 @@ from lib.ctr_tmd import TMDReader, TMDBuilder
 from lib.ctr_tik import tikReader, tikBuilder
 from lib.ctr_cdn import CDNReader, CDNBuilder
 from lib.ctr_cnt import cntReader
+from lib.ntr_twl_srl import SRLReader, get_rsa_key_idx
+
+def srl_retail2dev(path, out=''):
+    name = os.path.splitext(os.path.basename(path))[0]
+    if out == '':
+        out = f'{name}_dev.srl'
+    
+    srl = SRLReader(path, dev=0)
+    shutil.copyfile(path, 'tmp.nds')
+
+    if srl.media == 'Game card' and srl.secure_area_status == 'decrypted': # Encrypt NTR secure area for decrypted game card SRLs
+        with open(path, 'rb') as f:
+            f.seek(0x4000)
+            secure_area = f.read(2048)
+            secure_area_enc = srl.encrypt_secure_area(secure_area, NTR.blowfish_key)
+        with open('tmp.nds', 'r+b') as f:
+            f.seek(0x4000)
+            f.write(secure_area_enc)
+
+    if srl.modcrypted: # Decrypt modcrypt regions and re-encrypt with dev key
+        srl.decrypt_modcrypt()
+        f = open('decrypted.nds', 'rb')
+        key = bytes(srl.hdr)[:16][::-1]
+        for i in srl.modcrypt:
+            g = open('tmp.nds', 'r+b')
+            f.seek(i['offset'])
+            g.seek(i['offset'])
+
+            counter = bytearray(i['counter'])
+            for data in read_chunks(f, i['size']):
+                for j in range(len(data) // 16):
+                    output, counter = TWL.aes_ctr_block(key, counter, data[j * 16:(j + 1) * 16])
+                    g.write(output)
+            g.close()
+        f.close()
+        os.remove('decrypted.nds')
+    
+    if srl.hdr.unit_code == 2 or srl.hdr.unit_code == 3 or (srl.hdr.unit_code == 0 and srl.hdr_ext.flags != 0): # Set DeveloperApp flag
+        srl.hdr_ext.flags |= (1 << 7)
+        with open('tmp.nds', 'r+b') as f:
+            f.seek(0x1BF)
+            f.write(int8tobytes(srl.hdr_ext.flags))
+    
+    if not (srl.hdr.unit_code == 0 and readbe(srl.hdr_ext.sig) == 0): # Re-generate header signature
+        idx = get_rsa_key_idx(srl.hdr, srl.hdr_ext)
+        n = TWL.rsa_key_mod[idx]
+        d = TWL.rsa_key_priv[idx]
+        
+        f = open('tmp.nds', 'rb')
+        sha1_calculated = Crypto.sha1(f, 0xE00)
+        f.close()
+        sha1_padded = b'\x00\x01' + b'\xff' * 105 + b'\x00' + sha1_calculated
+        enc = pow(readbe(sha1_padded), readbe(d[1]), readbe(n[1])).to_bytes(0x80, 'big')
+        with open('tmp.nds', 'r+b') as f:
+            f.seek(0xF80)
+            f.write(enc)
+
+    if srl.media == 'Game card': # Re-generate undumpable area i.e. KeyTables for game card SRLs
+        srl = SRLReader('tmp.nds', dev=1)
+        srl.regen_undumpable()
+        os.remove('tmp.nds')
+        shutil.move('new.nds', out)
+    else:
+        shutil.move('tmp.nds', out)
 
 def cia_dev2retail(path, out=''):
     name = os.path.splitext(os.path.basename(path))[0]
