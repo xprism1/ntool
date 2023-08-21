@@ -118,45 +118,49 @@ def calc_path_hash(name, parent_off):
     return h
 
 class RomFSReader:
-    def __init__(self, file):
+    def __init__(self, file, lvl3only=False):
         self.file = file
+        self.lvl3only = lvl3only
 
-        with open(file, 'rb') as f:
-            self.hdr = RomFSHdr(f.read(0x5C))
+        if not lvl3only:
+            with open(file, 'rb') as f:
+                self.hdr = RomFSHdr(f.read(0x5C))
 
-        self.lvl1_block_size = 1 << self.hdr.lvl1_block_size
-        self.lvl2_block_size = 1 << self.hdr.lvl2_block_size
-        self.lvl3_block_size = 1 << self.hdr.lvl3_block_size
+            self.lvl1_block_size = 1 << self.hdr.lvl1_block_size
+            self.lvl2_block_size = 1 << self.hdr.lvl2_block_size
+            self.lvl3_block_size = 1 << self.hdr.lvl3_block_size
 
-        # Get offsets for RomFS components
-        hashes = {}
-        curr = 0x60
+            # Get offsets for RomFS components
+            hashes = {}
+            curr = 0x60
 
-        hashes['Master Hash'] = {
-            'size': self.hdr.master_hash_size,
-            'offset': curr
-        }
-        curr += hashes['Master Hash']['size']
+            hashes['Master Hash'] = {
+                'size': self.hdr.master_hash_size,
+                'offset': curr
+            }
+            curr += hashes['Master Hash']['size']
 
-        curr += align(curr, self.lvl3_block_size)
-        self.lvl3_offset = curr
-        curr += self.hdr.lvl3_size
+            curr += align(curr, self.lvl3_block_size)
+            self.lvl3_offset = curr
+            curr += self.hdr.lvl3_size
 
-        curr += align(curr, self.lvl1_block_size)
-        hashes['Level 1'] = {
-            'size': self.hdr.lvl1_hash_size,
-            'offset': curr
-        }
-        curr += hashes['Level 1']['size']
+            curr += align(curr, self.lvl1_block_size)
+            hashes['Level 1'] = {
+                'size': self.hdr.lvl1_hash_size,
+                'offset': curr
+            }
+            curr += hashes['Level 1']['size']
 
-        curr += align(curr, self.lvl2_block_size)
-        hashes['Level 2'] = {
-            'size': self.hdr.lvl2_hash_size,
-            'offset': curr
-        }
-        curr += hashes['Level 2']['size']
+            curr += align(curr, self.lvl2_block_size)
+            hashes['Level 2'] = {
+                'size': self.hdr.lvl2_hash_size,
+                'offset': curr
+            }
+            curr += hashes['Level 2']['size']
 
-        self.hashes = hashes
+            self.hashes = hashes
+        else:
+            self.lvl3_offset = 0
 
         # Parse level 3 (actual data)
         self.files = {}
@@ -216,31 +220,32 @@ class RomFSReader:
         print(f'Extracted to {output_dir}')
     
     def verify(self):
-        f = open(self.file, 'rb')
+        if not self.lvl3only:
+            f = open(self.file, 'rb')
 
-        hash_check = []
-        hash_check_info = [
-            ('Master Hash', self.hashes['Level 1']['offset'], self.lvl1_block_size), # Master hash verifies level 1
-            ('Level 1', self.hashes['Level 2']['offset'], self.lvl2_block_size), # Level 1 verifies level 2
-            ('Level 2', self.lvl3_offset, self.lvl3_block_size) # Level 2 verifies level 3
-        ]
-        for name, off, block_size in hash_check_info:
-            f.seek(self.hashes[name]['offset'])
-            hashes = f.read(self.hashes[name]['size'])
-            num_blocks = len(hashes) // 0x20
-            checks = []
-            f.seek(off)
+            hash_check = []
+            hash_check_info = [
+                ('Master Hash', self.hashes['Level 1']['offset'], self.lvl1_block_size), # Master hash verifies level 1
+                ('Level 1', self.hashes['Level 2']['offset'], self.lvl2_block_size), # Level 1 verifies level 2
+                ('Level 2', self.lvl3_offset, self.lvl3_block_size) # Level 2 verifies level 3
+            ]
+            for name, off, block_size in hash_check_info:
+                f.seek(self.hashes[name]['offset'])
+                hashes = f.read(self.hashes[name]['size'])
+                num_blocks = len(hashes) // 0x20
+                checks = []
+                f.seek(off)
 
-            for i in range(num_blocks):
-                h = hashlib.sha256()
-                h.update(f.read(block_size))
-                checks.append(h.digest() == hashes[i * 0x20:(i + 1) * 0x20])
-            hash_check.append((name, all(checks)))
+                for i in range(num_blocks):
+                    h = hashlib.sha256()
+                    h.update(f.read(block_size))
+                    checks.append(h.digest() == hashes[i * 0x20:(i + 1) * 0x20])
+                hash_check.append((name, all(checks)))
 
-        f.close()
-        print("Hashes:")
-        for i in hash_check:
-            print(' > {0:15} {1:4}'.format(i[0] + ':', 'GOOD' if i[1] else 'FAIL'))
+            f.close()
+            print("Hashes:")
+            for i in hash_check:
+                print(' > {0:15} {1:4}'.format(i[0] + ':', 'GOOD' if i[1] else 'FAIL'))
 
 class RomFSBuilder:
     def __init__(self, romfs_dir='', out='romfs.bin'):
