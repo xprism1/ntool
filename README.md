@@ -31,8 +31,8 @@ python3 ntool.py cci_retail2dev <path_to_cci> (--out <path_to_output_file>)
 - **WARNING: Only perform this on SysNAND if you are able to use ntrboot to recover from a brick!**
 - First, obtain the SystemUpdaterForCTR zip file from NDP if you have a o3DS/o3DS XL/2DS. For n3DS/n3DS XL/n2DS XL, obtain the SystemUpdaterForSNAKE zip file instead
 - Extract the zip file, and choose the appropriate .csu file for your 3DS's region
-- Run `python3 ntool.py csu2retailcias <path_to_csu> updates/`
-- Place the `updates` folder in the root of your 3DS's SD
+- Run `python3 ntool.py csu2retailcias <path_to_csu>`
+- Place the `updates_retail` folder in the root of your 3DS's SD and rename it to `updates`
 - Install [sysUpdater](https://github.com/profi200/sysUpdater), launch it and follow the on-screen instructions
 - You may need to enable `Set developer UNITINFO` in Luma3DS settings
 

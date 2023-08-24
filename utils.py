@@ -669,7 +669,7 @@ def csu2retailcias(path, out=''):
     romfs = RomFSReader('romfs.bin')
     romfs.extract()
 
-    cnt = cntReader('romfs/contents/CupList', 'romfs/contents/Contents.cnt')
+    cnt = cntReader('romfs/contents/Contents.cnt', 'romfs/contents/CupList')
     cnt.extract()
 
     for i in ['cci_header.bin', 'card_info.bin', 'mastering_info.bin', 'initialdata.bin', 'card_device_info.bin', 'content0.game.ncch', 'ncch_header.bin', 'exheader.bin', 'logo.bin', 'plain.bin', 'exefs.bin', 'romfs.bin']:
