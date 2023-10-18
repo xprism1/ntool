@@ -73,7 +73,7 @@ def init_keycode(key, gamecode, level, mod):
     return key
 
 def get_rsa_key_idx(hdr, hdr_ext): # The RSA key to be used depends on which bits in the titleID are set
-    if hdr.unit_code == 0 and readbe(hdr_ext.sig) != 0:
+    if hdr.unit_code == 0 and (hdr_ext.flags >> 6) & 1:
         return 3
     elif hdr.unit_code == 2 or hdr.unit_code == 3:
         if (hdr_ext.titleID_hi >> 1) & 1:
@@ -582,17 +582,17 @@ class SRLReader:
             crc_check.append(('Header', crc16(list(data)) == self.hdr.hdr_crc))
         
         hmac_check = []
-        if self.hdr.unit_code == 0 and readbe(self.hdr_ext.sig) != 0:
+        if self.hdr.unit_code == 0:
             f = open(file, 'rb')
             
-            if (self.hdr_ext.flags >> 5) & 1 and bytes(self.hdr_ext.banner_hmac) != b'\x00' * 20:
+            if (self.hdr_ext.flags >> 5) & 1 and 'banner.bin' in self.files.keys():
                 f.seek(self.files['banner.bin']['offset'])
                 hmac_digest = hmac.new(key=TWL.hmac_key_whitelist34, digestmod=hashlib.sha1)
                 for data in read_chunks(f, self.files['banner.bin']['size']):
                     hmac_digest.update(data)
                 hmac_check.append(('Banner', hmac_digest.digest() == bytes(self.hdr_ext.banner_hmac)))
             
-            if (self.hdr_ext.flags >> 6) & 1 and bytes(self.hdr_ext.hdr_arm9_arm7_hmac) != b'\x00' * 20:
+            if (self.hdr_ext.flags >> 6) & 1 and 'arm9.bin' in self.files.keys() and 'arm7.bin' in self.files.keys():
                 hmac_digest = hmac.new(key=TWL.hmac_key_whitelist12, digestmod=hashlib.sha1)
 
                 # Header
@@ -611,7 +611,7 @@ class SRLReader:
 
                 hmac_check.append(('Hdr,ARM9,ARM7', hmac_digest.digest() == bytes(self.hdr_ext.hdr_arm9_arm7_hmac)))
             
-            if (self.hdr_ext.flags >> 6) & 1 and bytes(self.hdr_ext.arm9overlay_fat_hmac) != b'\x00' * 20:
+            if (self.hdr_ext.flags >> 6) & 1 and 'arm9overlay.bin' in self.files.keys() and self.hdr.fat_offset:
                 hmac_digest = hmac.new(key=TWL.hmac_key_whitelist12, digestmod=hashlib.sha1)
 
                 # ARM9 overlay
@@ -655,7 +655,7 @@ class SRLReader:
                          ('arm7i.bin', bytes(self.hdr_ext.arm7i_hmac))]
             f = open(file, 'rb')
             for fname, expected_digest in hmac_info:
-                if fname in self.files.keys() and expected_digest != b'\x00' * 20:
+                if fname in self.files.keys():
                     info = self.files[fname]
                     f.seek(info['offset'])
                     hmac_digest = hmac.new(key=TWL.hmac_key, digestmod=hashlib.sha1)
@@ -664,7 +664,7 @@ class SRLReader:
                     hmac_check.append((info['name'], hmac_digest.digest() == expected_digest))
             
             expected_digest = bytes(self.hdr_ext.arm9_no_secure_area_hmac)
-            if expected_digest != b'\x00' * 20:
+            if 'arm9.bin' in self.files.keys() and expected_digest != b'\x00' * 20:
                 f.seek(self.files['arm9.bin']['offset'] + 0x4000)
                 hmac_digest = hmac.new(key=TWL.hmac_key, digestmod=hashlib.sha1)
                 for data in read_chunks(f, self.files['arm9.bin']['size'] - 0x4000):
@@ -698,7 +698,7 @@ class SRLReader:
 
         sig_check = []
         # Header signature is the raw SHA1 hash (with padding); easier to manually decrypt and remove the padding
-        if not (self.hdr.unit_code == 0 and readbe(self.hdr_ext.sig) == 0): # Signature exists
+        if (self.hdr_ext.flags >> 6) & 1 or self.hdr.unit_code == 2 or self.hdr.unit_code == 3:
             idx = get_rsa_key_idx(self.hdr, self.hdr_ext)
             n = readbe(TWL.rsa_key_mod[idx][self.dev])
             e = 0x10001
