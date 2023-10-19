@@ -543,11 +543,10 @@ class SRLReader:
                 f.seek(i['offset'])
                 g.seek(i['offset'])
 
-                counter = bytearray(i['counter'])
+                counter = Counter.new(128, initial_value=readbe(i['counter']))
+                cipher = AES.new(i['key'], AES.MODE_CTR, counter=counter)
                 for data in read_chunks(f, i['size']):
-                    for j in range(len(data) // 16):
-                        output, counter = TWL.aes_ctr_block(i['key'], counter, data[j * 16:(j + 1) * 16])
-                        g.write(output)
+                    g.write(TWL.aes_ctr(cipher, data))
                 
                 print(f'Decrypted {i["name"]}')
                 g.close()

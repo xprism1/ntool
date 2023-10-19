@@ -38,11 +38,10 @@ def srl_retail2dev(path, out=''):
             f.seek(i['offset'])
             g.seek(i['offset'])
 
-            counter = bytearray(i['counter'])
+            counter = Counter.new(128, initial_value=readbe(i['counter']))
+            cipher = AES.new(key, AES.MODE_CTR, counter=counter)
             for data in read_chunks(f, i['size']):
-                for j in range(len(data) // 16):
-                    output, counter = TWL.aes_ctr_block(key, counter, data[j * 16:(j + 1) * 16])
-                    g.write(output)
+                g.write(TWL.aes_ctr(cipher, data))
             g.close()
         f.close()
         os.remove('decrypted.nds')
