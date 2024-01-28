@@ -250,7 +250,7 @@ class KeyTable(Structure): # In ROM dumps, the NTR KeyTable is all '00', and the
         ('reserved_2', c_uint8 * 0x5B8),
         ('s_boxes', c_uint8 * 0x1000),
         ('reserved_3', c_uint8 * 0x400),
-        ('test_pattern', c_uint8 * 0x1000) # Only in NTR KeyTable
+        ('test_pattern', c_uint8 * 0x1000)
     ]
 
     def __new__(cls, buf):
@@ -531,6 +531,9 @@ class SRLReader:
                     f.seek(self.hdr.data6 * 0x80000 + 0xC00)
                     for i in range(18, 18 + 1024):
                         f.write(int32tobytes(key[i]))
+                    
+                    f.seek(self.hdr.data6 * 0x80000 + 0x2000)
+                    f.write(test_pattern)
         
         print('Wrote to new.nds')
 
@@ -783,6 +786,7 @@ class SRLReader:
                 f'  SignJPEGforlauncher: {(self.hdr_ext.access_control >> 7) & 1}\n'
                 f'  Game card NTR mode:  {(self.hdr_ext.access_control >> 8) & 1}\n'
                 f'  SSL client cert:     {(self.hdr_ext.access_control >> 9) & 1}\n'
+                f'  Commonclientkeydev:  {(self.hdr_ext.access_control >> 31) & 1}\n'
                 f'Flags:\n'
                 f' > TSC mode:           {"DSi" if self.hdr_ext.flags & 1 else "DS"}\n'
                 f' > EULA required:      {"Yes" if (self.hdr_ext.flags >> 1) & 1 else "No"}\n'
