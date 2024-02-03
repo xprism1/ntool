@@ -56,7 +56,18 @@ class CDNReader:
                 if self.titlekey == b'':
                     raise Exception('Could not generate valid titlekey')
 
-    def decrypt(self):
+    def extract(self):
+        with open(self.tmd + '.extracted', 'wb') as f: # Add .extracted to filename to avoid conflict with existing filename
+            with open(self.tmd, 'rb') as g:
+                tmd_data = g.read()
+            f.write(tmd_data[:-1792])
+
+        if self.tik != '':
+            with open(self.tik + '.extracted', 'wb') as f:
+                with open(self.tik, 'rb') as g:
+                    tik_data = g.read()
+                f.write(tik_data[:-1792])
+
         for i in self.content_files:
             for name, info in self.tmd_read.files.items():
                 if name.split('.')[1] == i: # CDN files are named as contentID
