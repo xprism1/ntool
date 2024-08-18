@@ -4,6 +4,13 @@ from .keys import *
 magic30 = 0x72636E65 # 'encr'
 magic34 = 0x6A624F79 # 'yObj'
 decrypted_id = 0xE7FFDEFF
+sec_area_id_special = { # Non-standard decryption values
+    'YV5P': (0xD0D48B67, 0x39392F23), # Dragon Quest 5 (EU)
+    'YV5E': (0x014A191A, 0xA5C470B9), # Dragon Quest 5 (USA)
+    'YV5J': (0x7829BC8D, 0x9968EF44), # Dragon Quest 5 (JP)
+    'CP5P': (0xC4A15AB8, 0xD2E667C8), # Prince of Persia (EU)
+    'CP5E': (0xD5E97D20, 0x21B2A159), # Prince of Persia (USA)
+}
 block_size = 512
 
 def mod_add(a, b):
@@ -477,15 +484,17 @@ class SRLReader:
             p1, p0 = blowfish_decrypt(key_lvl3, readle(secure_area[i + 4:i + 8]), readle(secure_area[i:i + 4]))
             secure_area = secure_area[:i] + int32tobytes(p0) + int32tobytes(p1) + secure_area[i + 8:]
         
-        if readle(secure_area[:4]) == magic30 and readle(secure_area[4:8]) == magic34:
-            secure_area = int32tobytes(decrypted_id) + int32tobytes(decrypted_id) + secure_area[8:]
-        else:
-            raise Exception('Secure area ID decryption failed')
+        game_code = self.hdr.game_code.decode("ascii")
+        if game_code not in sec_area_id_special.keys():
+            if readle(secure_area[:4]) == magic30 and readle(secure_area[4:8]) == magic34:
+                secure_area = int32tobytes(decrypted_id) + int32tobytes(decrypted_id) + secure_area[8:]
+            else:
+                raise Exception('Secure area ID decryption failed')
 
-        secure_area_crc = readle(secure_area[0xE:0x10])
-        crc_calculated = crc16(list(secure_area[0x10:0x800]))
-        if secure_area_crc != crc_calculated:
-            raise Exception('Secure area CRC invalid')
+            secure_area_crc = readle(secure_area[0xE:0x10])
+            crc_calculated = crc16(list(secure_area[0x10:0x800]))
+            if secure_area_crc != crc_calculated:
+                raise Exception('Secure area CRC invalid')
 
         return secure_area
 
@@ -495,7 +504,9 @@ class SRLReader:
             raise Exception(f'Secure area is {self.secure_area_status}, cannot be encrypted')
         
         # Set the secure area ID, which was overwritten with decrypted_id
-        secure_area = int32tobytes(magic30) + int32tobytes(magic34) + secure_area[8:]
+        game_code = self.hdr.game_code.decode("ascii")
+        if game_code not in sec_area_id_special.keys():
+            secure_area = int32tobytes(magic30) + int32tobytes(magic34) + secure_area[8:]
 
         # Initialize with level 3, modulo 8 and encrypt first 2KB of secure area
         key_lvl3 = init_keycode(key, readle(self.hdr.game_code), 3, 8)
