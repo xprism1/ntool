@@ -365,14 +365,34 @@ class SRLReader:
             with open(file, 'rb') as f:
                 f.seek(self.hdr.banner_offset)
                 ver = readle(f.read(2))
-            banner_sizes = { 0x0001: 0x0840,
-                             0x0002: 0x0940,
-                             0x0003: 0x1240,
-                             0x0103: 0x23C0 }
-            if self.hdr.unit_code == 0:
-                size = banner_sizes[ver]
-            elif self.hdr.unit_code == 2 or self.hdr.unit_code == 3:
-                size = self.hdr_ext.banner_size
+            
+                calc_banner_size = False
+                banner_sizes = { 0x0001: 0x0840,
+                                0x0002: 0x0940,
+                                0x0003: 0x1240,
+                                0x0103: 0x23C0 }
+                if self.hdr.unit_code == 0:
+                    if ver in banner_sizes.keys():
+                        size = banner_sizes[ver]
+                        if ver == 0x0003:
+                            f.seek(self.hdr.banner_offset + size - 1)
+                            if f.read(33) != b'\x00' + b'\xFF' * 32:
+                                calc_banner_size = True
+                    else:
+                        calc_banner_size = True
+                elif self.hdr.unit_code == 2 or self.hdr.unit_code == 3:
+                    size = self.hdr_ext.banner_size
+            
+                # Calculate banner size manually (need to do this for some NTR games)
+                if calc_banner_size:
+                    f.seek(self.hdr.banner_offset)
+                    banner = f.read(0x1240)
+                    off = banner[0x240:].find(b'\xFF' * 32) # Find the padding after the end of the banner
+                    if off == -1: # Can't determine
+                        size = 0x1240
+                    else:
+                        size = off + 0x240
+            
             files['banner.bin'] = {
                 'name': 'Banner',
                 'offset': self.hdr.banner_offset,
