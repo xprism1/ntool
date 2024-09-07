@@ -213,18 +213,33 @@ class CCIReader:
         sys.stdout = open(os.devnull, 'w') # Block print statements
         for name, info in self.files.items():
             if name.endswith('ncch'):
-                ncch = NCCHReader(name, dev=self.dev)
-                ncch.decrypt()
-                g = open('decrypted.ncch', 'rb')
+                h = open(name, 'rb')
+                h.seek(0x100)
+                if h.read(4) == b'NCCH':
+                    ncch = NCCHReader(name, dev=self.dev)
+                    ncch.decrypt()
+                    g = open('decrypted.ncch', 'rb')
+                else:
+                    g = open(name, 'rb')
                 for data in read_chunks(g, info['size']):
                     f.write(data)
+                g.close()
+                h.close()
         sys.stdout = sys.__stdout__
-        f.write(b'\xff' * (os.path.getsize(self.file) - f.tell()))
+
+        curr = f.tell()
+        padding_size = os.path.getsize(self.file) - curr
+        g = open(self.file, 'rb')
+        g.seek(curr)
+        for data in read_chunks(g, padding_size):
+            f.write(data)
         f.close()
+        g.close()
 
         for name, info in self.files.items():
             os.remove(name)
-        os.remove('decrypted.ncch')
+        if os.path.isfile('decrypted.ncch'):
+            os.remove('decrypted.ncch')
         print(f'Decrypted to decrypted.3ds')
         
     def encrypt(self):
@@ -269,50 +284,65 @@ class CCIReader:
         sys.stdout = open(os.devnull, 'w') # Block print statements
         for name, info in self.files.items():
             if name.endswith('ncch'):
-                ncch = NCCHReader(name, dev=self.dev)
-                ncch.extract()
-                ncch_header = 'ncch_header.bin'
-                if os.path.isfile('exheader.bin'):
-                    exheader = 'exheader.bin'
-                else:
-                    exheader = ''
-                if os.path.isfile('logo.bin'):
-                    logo = 'logo.bin'
-                else:
-                    logo = ''
-                if os.path.isfile('plain.bin'):
-                    plain = 'plain.bin'
-                else:
-                    plain = ''
-                if os.path.isfile('exefs.bin'):
-                    exefs = 'exefs.bin'
-                else:
-                    exefs = ''
-                if os.path.isfile('romfs.bin'):
-                    romfs = 'romfs.bin'
-                else:
-                    romfs = ''
-                if name.startswith('content0'):
-                    NCCHBuilder(ncch_header=ncch_header, exheader=exheader, logo=logo, plain=plain, exefs=exefs, romfs=romfs, crypto=part0_crypto, dev=self.dev)
-                else: # Partitions 1 and up use Secure1, but if partition 0 uses fixed key, then the others will also use fixed key
-                    if part0_crypto == 'fixed':
-                        NCCHBuilder(ncch_header=ncch_header, exheader=exheader, logo=logo, plain=plain, exefs=exefs, romfs=romfs, crypto='fixed', dev=self.dev)
+                h = open(name, 'rb')
+                h.seek(0x100)
+                if h.read(4) == b'NCCH':
+                    ncch = NCCHReader(name, dev=self.dev)
+                    ncch.extract()
+                    ncch_header = 'ncch_header.bin'
+                    if os.path.isfile('exheader.bin'):
+                        exheader = 'exheader.bin'
                     else:
-                        NCCHBuilder(ncch_header=ncch_header, exheader=exheader, logo=logo, plain=plain, exefs=exefs, romfs=romfs, crypto='Secure1', dev=self.dev)
+                        exheader = ''
+                    if os.path.isfile('logo.bin'):
+                        logo = 'logo.bin'
+                    else:
+                        logo = ''
+                    if os.path.isfile('plain.bin'):
+                        plain = 'plain.bin'
+                    else:
+                        plain = ''
+                    if os.path.isfile('exefs.bin'):
+                        exefs = 'exefs.bin'
+                    else:
+                        exefs = ''
+                    if os.path.isfile('romfs.bin'):
+                        romfs = 'romfs.bin'
+                    else:
+                        romfs = ''
+                    if name.startswith('content0'):
+                        NCCHBuilder(ncch_header=ncch_header, exheader=exheader, logo=logo, plain=plain, exefs=exefs, romfs=romfs, crypto=part0_crypto, dev=self.dev)
+                    else: # Partitions 1 and up use Secure1, but if partition 0 uses fixed key, then the others will also use fixed key
+                        if part0_crypto == 'fixed':
+                            NCCHBuilder(ncch_header=ncch_header, exheader=exheader, logo=logo, plain=plain, exefs=exefs, romfs=romfs, crypto='fixed', dev=self.dev)
+                        else:
+                            NCCHBuilder(ncch_header=ncch_header, exheader=exheader, logo=logo, plain=plain, exefs=exefs, romfs=romfs, crypto='Secure1', dev=self.dev)
 
-                g = open('new.ncch', 'rb')
+                    g = open('new.ncch', 'rb')
+                else:
+                    g = open(name, 'rb')
                 for data in read_chunks(g, info['size']):
                     f.write(data)
+                g.close()
+                h.close()
                 for i in os.listdir('.'):
                     if i in ['ncch_header.bin', 'exheader.bin', 'logo.bin', 'plain.bin', 'exefs.bin', 'romfs.bin']:
                         os.remove(i)
         sys.stdout = sys.__stdout__
-        f.write(b'\xff' * (os.path.getsize(self.file) - f.tell()))
+        
+        curr = f.tell()
+        padding_size = os.path.getsize(self.file) - curr
+        g = open(self.file, 'rb')
+        g.seek(curr)
+        for data in read_chunks(g, padding_size):
+            f.write(data)
         f.close()
+        g.close()
 
         for name, info in self.files.items():
             os.remove(name)
-        os.remove('new.ncch')
+        if os.path.isfile('new.ncch'):
+            os.remove('new.ncch')
         print(f'Encrypted to encrypted.3ds')
     
     def regen_undumpable(self):
