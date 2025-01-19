@@ -3,8 +3,6 @@ from .keys import *
 from .ctr_exefs import ExeFSFileHdr
 from .ctr_romfs import RomFSReader
 
-media_unit = 0x200
-
 class NCCHHdr(Structure):
     _fields_ = [
         ('sig', c_uint8 * 0x100),
@@ -58,12 +56,12 @@ def get_ncch_counter(hdr, component):
         if component == 'exheader.bin':
             x = 0x200
         elif component == 'exefs.bin':
-            x = hdr.exefs_offset * media_unit
+            x = hdr.exefs_offset
         elif component == 'romfs.bin':
-            x = hdr.romfs_offset * media_unit
+            x = hdr.romfs_offset
         counter[:8] = bytearray(hdr.titleID)
         for i in range(4):
-            counter[12 + i] = int8tobytes(x >> (3 - i) * 8 & 255)
+            counter[12 + i:12 + i + 1] = int8tobytes(x >> (3 - i) * 8 & 255)
 
     return bytes(counter)
 
@@ -88,6 +86,11 @@ class NCCHReader:
 
         with open(file, 'rb') as f:
             self.hdr = NCCHHdr(f.read(0x200))
+
+        if self.hdr.format_ver == 0 or self.hdr.format_ver == 2:
+            media_unit = 0x200
+        elif self.hdr.format_ver == 1:
+            media_unit = 1
 
         # Parse flags
         self.keyX_2 = { 0x00: CTR.KeyX0x2C,
@@ -368,6 +371,7 @@ class NCCHReader:
         return (
             f'TitleID:           {hex(readle(self.hdr.titleID))[2:].zfill(16)}\n'
             f'Maker code:        {self.hdr.maker_code.decode("ascii")}\n'
+            f'Format version:    {self.hdr.format_ver}\n'
             f'Product code:      {self.hdr.product_code.decode("ascii")}\n'
             f'Flags:\n'
             f' > Crypto method:  {crypto}\n'
@@ -538,6 +542,11 @@ class NCCHBuilder:
                     sig = Crypto.sign_rsa_sha256(CTR.accessdesc_mod[1], CTR.accessdesc_priv[1], f.read(0x300))
                     f.seek(0x400)
                     f.write(sig)
+
+        if hdr.format_ver == 0 or hdr.format_ver == 2:
+            media_unit = 0x200
+        elif hdr.format_ver == 1:
+            media_unit = 1
 
         curr = 0x200
         files = {}
