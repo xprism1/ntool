@@ -587,7 +587,7 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
     tmd = ''
     tik = ''
     for i in os.listdir('.'):
-        if i.startswith('tmd.'):
+        if i.startswith('tmd.') or i == 'tmd':
             tmds.append(i)
         elif i == 'cetk':
             tik = i
@@ -597,7 +597,7 @@ def cdn2cia(path, out='', title_ver='', cdn_dev=0, cia_dev=0):
     if len(tmds) == 1: # If only one tmd in CDN dir, use it
         tmd = tmds[0]
     else:
-        tmds.sort(key=lambda h: int(h.split('.')[1]))
+        tmds.sort(key=lambda h: int(os.path.splitext(h)[1].strip('.') or 0))
         if title_ver == '': # If title version not provided, use latest one
             tmd = tmds[-1]
         else:
